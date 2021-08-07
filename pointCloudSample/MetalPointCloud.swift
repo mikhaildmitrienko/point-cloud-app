@@ -183,6 +183,5 @@ struct MetalPointCloud: UIViewRepresentable {
     // `UIViewRepresentable` requires this implementation; however, the sample
     // app doesn't use it. Instead, `MTKView.delegate` handles display updates.
     func updateUIView(_ uiView: MTKView, context: UIViewRepresentableContext<MetalPointCloud>) {
-        
     }
 }

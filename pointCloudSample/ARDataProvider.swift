@@ -90,7 +90,7 @@ final class ARProvider: ARDataReceiver, ObservableObject {
     let guidedFilter: MPSImageGuidedFilter?
     let mpsScaleFilter: MPSImageBilinearScale?
     let commandQueue: MTLCommandQueue?
-    let pipelineStateCompute: MTLComputePipelineState?
+    var pipelineStateCompute: MTLComputePipelineState?
     
     // Create an empty texture.
     static func createTexture(metalDevice: MTLDevice, width: Int, height: Int, usage: MTLTextureUsage, pixelFormat: MTLPixelFormat) -> MTLTexture {
@@ -151,8 +151,135 @@ final class ARProvider: ARDataReceiver, ObservableObject {
         }
     }
     
+    
     // Save a reference to the current AR data and process it.
     func onNewARData(arData: ARData) {
+        
+        //Lines 159 - 168 are for printing the depth at a single point
+        let depthPixelBuffer = arData.depthImage
+        let point = CGPoint(x: 35, y: 25)
+        let width = CVPixelBufferGetWidth(depthPixelBuffer!)
+        let height = CVPixelBufferGetHeight(depthPixelBuffer!)
+        CVPixelBufferLockBaseAddress(depthPixelBuffer!, CVPixelBufferLockFlags(rawValue: 0))
+        let depthPointer = unsafeBitCast(CVPixelBufferGetBaseAddress(depthPixelBuffer!), to: UnsafeMutablePointer<Float32>.self)
+        let distanceAtXYPoint = depthPointer[Int(point.y * CGFloat(width) + point.x)]
+
+        // Uncomment the below line to print the distance at a single pixel to the console.
+        //        print(distanceAtXYPoint)
+        
+        
+        //Lines 172 - 195 are for exporting depth data to a csv
+        func convert(length: Int, data: UnsafeMutablePointer<Float32>) -> [Float32] {
+            let buffer = UnsafeBufferPointer(start: data, count: length);
+            return Array(buffer)
+        }
+        let depthPointerArray = convert(length: 49152, data: depthPointer)
+        let depthPointArraySeperated = (depthPointerArray.map{String($0)}).joined(separator:",\n")
+        let fileName = "depthData.csv"
+        let path = NSURL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(fileName)
+        var csvText = "Point\n"
+        print("Creating csv text")
+        //uncomment below line to see how the depth data is stored
+//        print(depthPointArraySeperated)
+        csvText.append(depthPointArraySeperated)
+//        print(csvText)
+        
+        print("Starting to write...")
+        do {
+                try csvText.write(to: path!, atomically: true, encoding: String.Encoding.utf8)
+                    } catch {
+                        print("Failed to create file")
+                        print("\(error)")
+                    }
+                    print(path ?? "not found")
+        
+        print("Write complete")
+        
+
+        //Process color
+        let colorImage = arData.capturedImage
+        CVPixelBufferLockBaseAddress(colorImage!, CVPixelBufferLockFlags(rawValue: 0))
+        let colorPointer = unsafeBitCast(CVPixelBufferGetBaseAddress(colorImage!), to: UnsafeMutablePointer<Float32>.self)
+        let colorAtXYPoint = colorPointer[Int(point.y * CGFloat(width) + point.x)]
+        let colorWidth1 = CVPixelBufferGetWidth(colorImage!)
+        let colorHeight1 = CVPixelBufferGetHeight(colorImage!)
+        
+        
+        //Lines 212 - 213 are for processing the extrinsic matrix. Uncomment line 213 to get it for every frame
+        let cameraExtrinsics = arData.cameraExtrinsics
+//        print(cameraExtrinsics)
+        
+        //Lines 216 - 217 are for processing euler angles. Uncomment line 217 to get it for every frame
+        let eulerAngles = arData.eulerAngles
+//        print(eulerAngles)
+        
+        
+        
+//        let colorRGBTexture = ARProvider.createTexture(metalDevice: metalDevice!, width: origColorWidth, height: origColorHeight,
+//                                                   usage: [.shaderRead, .shaderWrite], pixelFormat: .rgba32Float)
+//
+//        let colorWidth = colorRGBTexture.width
+//        let colorHeight = colorRGBTexture.height
+//        let bytesPerRow = colorWidth * 4
+//
+//        let data = UnsafeMutableRawPointer.allocate(byteCount: bytesPerRow * colorHeight, alignment: 4)
+//        defer {
+//                data.deallocate(bytes: bytesPerRow * colorHeight, alignedTo: 4)
+//            }
+        
+        
+        
+//        func getDocumentsDirectory() -> URL {
+//            let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+//            return paths[0]
+//        }
+        
+//        func textureToImage(texture: MTLTexture) -> Void {
+//            let kciOptions: [CIImageOption:Any] = [.colorSpace: CGColorSpaceCreateDeviceRGB()]
+//            let ciImage = CIImage(mtlTexture: texture, options: kciOptions)!
+//            let transform = CGAffineTransform.identity
+//                              .scaledBy(x: 1, y: -1)
+//                              .translatedBy(x: 0, y: ciImage.extent.height)
+//            let transformed = ciImage.transformed(by: transform)
+//
+//            let image = UIImage(ciImage: transformed)
+//            print(image.pngData())
+//            if let data = image.pngData() {
+//                let filename = getDocumentsDirectory().appendingPathComponent("copy.png")
+//                try? data.write(to: filename)
+//            }
+//
+////            let image = UIImage(ciImage: transformed)
+////                if let data = image.jpegData(compressionQuality: 0.8) {
+////                    let filename = getDocumentsDirectory().appendingPathComponent("copy.jpeg")
+////                    try? data.write(to: filename)
+////                }
+//          }
+
+//        let pngData = textureToImage(texture: colorRGBTexture)
+//        print(pngData)
+        
+//        let region = MTLRegionMake2D(0, 0, colorWidth, colorHeight)
+//        let realData = colorRGBTexture.getBytes(data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+//
+//        print(realData)
+
+//        colorRGBTexture.getBytes(data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+//        let bind = data.assumingMemoryBound(to: UInt8.self)
+//
+//        print(bind)
+        
+//        CVPixelBufferLockBaseAddress(colorRGBTexture!, CVPixelBufferLockFlags(rawValue: 0))
+//        let rgbPointer = unsafeBitCast(CVPixelBufferGetBaseAddress(colorImage!), to: UnsafeMutablePointer<Float32>.self)
+//        let rgbColorAtXYPoint = rgbPointer[Int(point.y * CGFloat(width) + point.x)]
+//        print("color", rgbColorAtXYPoint)
+//
+//        print("colorBuffer:", colorRGBTexture)
+        
+//        print(arData.depthImage as Any)
+//        CVPixelBufferLockBaseAddress(arData.depthImage!, .readOnly)
+//        print(CVPixelBufferGetBaseAddress(arData.depthImage!))
+//        CVPixelBufferUnlockBaseAddress(arData.depthImage!, .readOnly)
         lastArData = arData
         processLastArData()
     }
@@ -185,6 +312,8 @@ final class ARProvider: ARDataReceiver, ObservableObject {
             computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
             computeEncoder.endEncoding()
             
+//            print(colorRGBTexture)
+
             // Downscale the RGB data. Pass in the target resoultion.
             mpsScaleFilter?.encode(commandBuffer: cmdBuffer, sourceTexture: colorRGBTexture,
                                    destinationTexture: colorRGBTextureDownscaled)
